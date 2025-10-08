@@ -48,6 +48,18 @@ public class ChatActivity extends AppCompatActivity {
     MessageAdapter messageAdapter;
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        ChatApp.setAppInForeground(true);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        ChatApp.setAppInForeground(false);
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
@@ -163,7 +175,6 @@ public class ChatActivity extends AppCompatActivity {
         }
 
         MessageModel messageModel = new MessageModel(messageId, currentUserId, message);
-        //messageAdapter.add(messageModel);
         messageText.setText("");
 
         dbReferenceSender.child(messageId).setValue(messageModel)
@@ -171,6 +182,13 @@ public class ChatActivity extends AppCompatActivity {
                     @Override
                     public void onSuccess(Void unused) {
                         Log.d("ChatActivity", "Mensaje enviado exitosamente");
+
+                        NotificationHelper.sendNotification(
+                                receiverId,
+                                message,
+                                getSupportActionBar().getTitle().toString(),
+                                currentUserId
+                        );
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {

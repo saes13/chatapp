@@ -34,7 +34,17 @@ public class MainActivity extends AppCompatActivity {
     String yourName;
     DatabaseReference databaseReference;
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        ChatApp.setAppInForeground(true);
+    }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+        ChatApp.setAppInForeground(false);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
