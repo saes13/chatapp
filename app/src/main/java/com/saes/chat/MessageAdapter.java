@@ -22,11 +22,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MyViewHo
     private Context context;
     private List<MessageModel> messageModelList;
 
-    /*public UsersAdapter(Context context, List<UserModel> userModelList) {
-        this.context = context;
-        this.userModelList = userModelList;
-    }*/
-
     public MessageAdapter(Context context) {
         this.context = context;
         this.messageModelList = new ArrayList<>();
@@ -34,14 +29,27 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MyViewHo
 
     public void add(MessageModel messageModel)
     {
-        messageModelList.add(messageModel);
-        notifyDataSetChanged();
+        if (messageModel != null) {
+            int index = 0;
+            for (int i = 0; i < messageModelList.size(); i++) {
+                if (messageModel.getTimestamp() < messageModelList.get(i).getTimestamp()) {
+                    index = i;
+                    break;
+                }
+                index = i + 1;
+            }
+            messageModelList.add(index, messageModel);
+            notifyItemInserted(index);
+        }
     }
 
     public void clear()
     {
+        int size = messageModelList.size();
         messageModelList.clear();
-        notifyDataSetChanged();
+        if (size > 0) {
+            notifyItemRangeRemoved(0, size);
+        }
     }
 
     @NonNull
@@ -63,11 +71,26 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MyViewHo
     @Override
     public void onBindViewHolder(@NonNull MessageAdapter.MyViewHolder holder, int position) {
         MessageModel messageModel = messageModelList.get((position));
-        if (messageModel.getSenderId().equals(FirebaseAuth.getInstance().getUid()))
+        if (messageModel == null) return;
+
+        String currentUserId = FirebaseAuth.getInstance().getUid();
+        if (currentUserId == null) return;
+
+        if (messageModel.getSenderId().equals(currentUserId))
         {
-            holder.textViewSendMessage.setText(messageModel.getMessage());
+            if (holder.textViewSendMessage != null) {
+                holder.textViewSendMessage.setText(messageModel.getMessage());
+            }
+            if (holder.textViewReceivedMessage != null) {
+                holder.textViewReceivedMessage.setVisibility(View.GONE);
+            }
         }else{
-            holder.textViewReceivedMessage.setText(messageModel.getMessage());
+            if (holder.textViewReceivedMessage != null) {
+                holder.textViewReceivedMessage.setText(messageModel.getMessage());
+            }
+            if (holder.textViewSendMessage != null) {
+                holder.textViewSendMessage.setVisibility(View.GONE);
+            }
         }
     }
 

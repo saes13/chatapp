@@ -32,6 +32,8 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -58,6 +60,22 @@ public class ChatActivity extends AppCompatActivity {
         receiverId = getIntent().getStringExtra("id");
         receiverName = getIntent().getStringExtra("name");
 
+        if (receiverId == null || receiverId.isEmpty()) {
+            Toast.makeText(this, "ID de usuario no válido", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+
+        String currentUserId = FirebaseAuth.getInstance().getUid();
+        if (currentUserId == null) {
+            Toast.makeText(this, "Usuario no autenticado", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+
+        senderRoom = currentUserId + receiverId;
+        receiverRoom = receiverId + currentUserId;
+
         getSupportActionBar().setTitle(receiverName);
         if (receiverId != null)
         {
@@ -82,19 +100,35 @@ public class ChatActivity extends AppCompatActivity {
                 for (DataSnapshot dataSnapshot:snapshot.getChildren())
                 {
                     MessageModel messageModel = dataSnapshot.getValue(MessageModel.class);
-                    messages.add(messageModel);
+                    if (messageModel != null && messageModel.getMessageId() != null) {
+                        if (messageModel.getTimestamp() == 0) {
+                            messageModel.setTimestamp(System.currentTimeMillis() - (messages.size() * 1000));
+                        }
+                        messages.add(messageModel);
+                    }
                 }
+
+                Collections.sort(messages, new Comparator<MessageModel>() {
+                    @Override
+                    public int compare(MessageModel m1, MessageModel m2) {
+                        return Long.compare(m1.getTimestamp(), m2.getTimestamp());
+                    }
+                });
+
                 messageAdapter.clear();
                 for (MessageModel message: messages)
                 {
                     messageAdapter.add(message);
                 }
-                messageAdapter.notifyDataSetChanged();
+
+                if (!messages.isEmpty()) {
+                    recyclerView.scrollToPosition(messages.size() - 1);
+                }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-
+                Toast.makeText(ChatActivity.this, "Error al cargar mensajes", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -116,16 +150,27 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void SendMessage(String message) {
+        if (message.trim().isEmpty()) {
+            return;
+        }
 
         String messageId = UUID.randomUUID().toString();
-        MessageModel messageModel = new MessageModel(messageId, FirebaseAuth.getInstance().getUid(), message);
-        messageAdapter.add(messageModel);
+        String currentUserId = FirebaseAuth.getInstance().getUid();
+
+        if (currentUserId == null) {
+            Toast.makeText(this, "Usuario no autenticado", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        MessageModel messageModel = new MessageModel(messageId, currentUserId, message);
+        //messageAdapter.add(messageModel);
+        messageText.setText("");
 
         dbReferenceSender.child(messageId).setValue(messageModel)
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void unused) {
-
+                        Log.d("ChatActivity", "Mensaje enviado exitosamente");
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
@@ -134,9 +179,10 @@ public class ChatActivity extends AppCompatActivity {
                         Toast.makeText(ChatActivity.this, "Error al enviar mensaje", Toast.LENGTH_SHORT).show();
                     }
                 });
-        dbReferenceReceiver.child(messageId).setValue(messageModel);
-        recyclerView.scrollToPosition(messageAdapter.getItemCount() - 1);
-        messageText.setText("");
+        dbReferenceReceiver.child(messageId).setValue(messageModel)
+                .addOnFailureListener(e -> {
+                    Log.e("ChatActivity", "Error al enviar mensaje al receptor: " + e.getMessage());
+                });
     }
 
     @Override

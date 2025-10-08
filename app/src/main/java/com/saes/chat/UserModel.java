@@ -6,14 +6,14 @@ public class UserModel {
     String userEmail;
     String userPassword;
 
+    public UserModel() {
+    }
+
     public UserModel(String userID, String userName, String userEmail, String userPassword) {
         this.userID = userID;
         this.userName = userName;
         this.userEmail = userEmail;
         this.userPassword = userPassword;
-    }
-
-    public UserModel() {
     }
 
     public String getUserID() {
